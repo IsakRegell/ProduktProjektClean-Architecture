@@ -1,0 +1,56 @@
+name: PR .NET build
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x" # ändra om du kör 7
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Notify Discord (success)
+        if: success()
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [
+                {
+                  "title": "✅ Build succeeded",
+                  "description": "PR #'"${{ github.event.pull_request.number }}"' — '"${{ github.event.pull_request.title }}"'\nRepo: '"${{ github.repository }}"'\nBy: '"${{ github.actor }}"'",
+                  "color": 3066993
+                }
+              ]
+            }' \
+            "${{ secrets.DISCORDNOTIFY }}"
+
+      - name: Notify Discord (failure)
+        if: failure()
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [
+                {
+                  "title": "❌ Build failed",
+                  "description": "PR #'"${{ github.event.pull_request.number }}"' — '"${{ github.event.pull_request.title }}"'\nRepo: '"${{ github.repository }}"'\nBy: '"${{ github.actor }}"'\nKolla Actions-loggen för fel.",
+                  "color": 15158332
+                }
+              ]
+            }' \
+            "${{ secrets.DISCORDNOTIFY }}"
